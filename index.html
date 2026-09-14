@@ -176,8 +176,11 @@
     display:flex;
     align-items:baseline;
     gap:8px;
-    padding:6px 0;
+    padding:6px 8px;
+    margin:0 -8px;
+    border-radius:4px;
     border-bottom:1px solid rgba(84,80,63,0.14);
+    transition:background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
   }
   .topic-row:last-child{ border-bottom:none; }
 
@@ -190,6 +193,7 @@
     border-radius:3px;
     flex-shrink:0;
     text-transform:uppercase;
+    transition:transform 0.2s ease, box-shadow 0.2s ease;
   }
 
   .topic-name{
@@ -219,6 +223,84 @@
     font-size:12.5px;
     color:#7C8074;
   }
+
+  .topic-row{ cursor:pointer; }
+  .topic-row:hover{
+    background:rgba(69,79,62,0.10);
+    transform:translateX(3px);
+    box-shadow:inset 3px 0 0 var(--gold);
+  }
+  .topic-row:hover .topic-name{
+    color:var(--olive);
+    letter-spacing:0.2px;
+  }
+  .topic-row:hover .tier-tag{
+    transform:scale(1.06);
+    box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  }
+  .topic-row.selected .topic-name{ color:var(--olive-dark); font-weight:600; }
+
+  @media (prefers-reduced-motion: reduce){
+    .topic-row, .tier-tag{ transition:none; }
+    .topic-row:hover{ transform:none; }
+    .topic-row:hover .tier-tag{ transform:none; }
+  }
+
+  .timer-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(18,22,27,0.92);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    font-family:'Segoe UI',system-ui,sans-serif;
+  }
+  .timer-overlay.active{ display:flex; }
+
+  .timer-box{
+    text-align:center;
+    color:var(--parchment);
+    padding:40px 50px;
+    border:1px solid rgba(198,161,91,0.35);
+    border-radius:8px;
+    background:var(--ink-2);
+    min-width:280px;
+  }
+
+  .timer-topic{
+    font-size:13px;
+    letter-spacing:0.5px;
+    color:var(--gold-dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+
+  .timer-phase{
+    font-size:20px;
+    color:var(--gold);
+    margin-bottom:18px;
+    letter-spacing:0.4px;
+  }
+
+  .timer-clock{
+    font-size:56px;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:2px;
+    color:var(--parchment);
+    margin-bottom:20px;
+  }
+
+  #timerCloseBtn{
+    background:transparent;
+    color:#AEB2A6;
+    border:1px solid rgba(198,161,91,0.35);
+    padding:8px 18px;
+    font-size:13px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  #timerCloseBtn:hover{ background:rgba(198,161,91,0.1); color:var(--parchment); }
 </style>
 </head>
 <body>
@@ -236,6 +318,15 @@
 </main>
 
 <footer>62 topics in the pool · 15 full four-tier cards + 1 bonus card each shuffle.</footer>
+
+<div class="timer-overlay" id="timerOverlay">
+  <div class="timer-box">
+    <div class="timer-topic" id="timerTopic"></div>
+    <div class="timer-phase" id="timerPhase">Preparation time started</div>
+    <div class="timer-clock" id="timerClock">03:00</div>
+    <button id="timerCloseBtn">Stop / Close</button>
+  </div>
+</div>
 
 <script>
 const TOPICS = {
@@ -322,7 +413,7 @@ function render(){
     const front = document.createElement("div");
     front.className = "card-face card-front";
     front.innerHTML = cardTopics.map(t =>
-      '<div class="topic-row"><span class="topic-name">' + t.name + '</span></div>'
+      '<div class="topic-row" data-topic="' + t.name.replace(/"/g,'&quot;') + '"><span class="topic-name">' + t.name + '</span></div>'
     ).join("");
 
     inner.appendChild(back);
@@ -338,12 +429,93 @@ function render(){
       }
     });
 
+    front.querySelectorAll(".topic-row").forEach(row => {
+      row.addEventListener("click", (e) => {
+        e.stopPropagation();
+        front.querySelectorAll(".topic-row").forEach(r => r.classList.remove("selected"));
+        row.classList.add("selected");
+        startLecturetteTimer(row.getAttribute("data-topic"));
+      });
+    });
+
     container.appendChild(card);
   });
 }
 
 document.getElementById("shuffleBtn").addEventListener("click", render);
 render();
+
+/* ---- Preparation / Narration timer ---- */
+const timerOverlay = document.getElementById("timerOverlay");
+const timerTopicEl = document.getElementById("timerTopic");
+const timerPhaseEl = document.getElementById("timerPhase");
+const timerClockEl = document.getElementById("timerClock");
+const timerCloseBtn = document.getElementById("timerCloseBtn");
+
+let timerInterval = null;
+let beep = null;
+try{ beep = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ beep = null; }
+
+function playChime(){
+  if(!beep) return;
+  const osc = beep.createOscillator();
+  const gain = beep.createGain();
+  osc.type = "sine";
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.15, beep.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, beep.currentTime + 0.6);
+  osc.connect(gain).connect(beep.destination);
+  osc.start();
+  osc.stop(beep.currentTime + 0.6);
+}
+
+function formatTime(sec){
+  const m = Math.floor(sec/60).toString().padStart(2,"0");
+  const s = Math.floor(sec%60).toString().padStart(2,"0");
+  return m + ":" + s;
+}
+
+function clearTimerInterval(){
+  if(timerInterval){
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function runPhase(seconds, label, onDone){
+  timerPhaseEl.textContent = label;
+  let remaining = seconds;
+  timerClockEl.textContent = formatTime(remaining);
+  clearTimerInterval();
+  timerInterval = setInterval(() => {
+    remaining--;
+    if(remaining < 0){
+      clearTimerInterval();
+      playChime();
+      onDone();
+      return;
+    }
+    timerClockEl.textContent = formatTime(remaining);
+  }, 1000);
+}
+
+function startLecturetteTimer(topicName){
+  timerTopicEl.textContent = topicName;
+  timerOverlay.classList.add("active");
+  runPhase(3 * 60, "Preparation time started", () => {
+    runPhase(3 * 60, "Narrate", () => {
+      timerPhaseEl.textContent = "Time up";
+      timerClockEl.textContent = "00:00";
+    });
+  });
+}
+
+function closeTimer(){
+  clearTimerInterval();
+  timerOverlay.classList.remove("active");
+}
+
+timerCloseBtn.addEventListener("click", closeTimer);
 </script>
 
 </body>
