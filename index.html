@@ -291,6 +291,41 @@
     margin-bottom:20px;
   }
 
+  .timer-bell{
+    display:flex;
+    justify-content:center;
+    margin-bottom:16px;
+  }
+
+  #timerBellBtn{
+    background:transparent;
+    border:1px solid rgba(198,161,91,0.35);
+    color:var(--gold);
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    font-size:20px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  #timerBellBtn:hover{
+    background:rgba(198,161,91,0.12);
+    box-shadow:0 0 0 4px rgba(198,161,91,0.08);
+  }
+  #timerBellBtn:active{ transform:scale(0.92); }
+  #timerBellBtn.ringing{ animation:bell-ring 0.5s ease; }
+
+  @keyframes bell-ring{
+    0%,100%{ transform:rotate(0deg); }
+    20%{ transform:rotate(-18deg); }
+    40%{ transform:rotate(14deg); }
+    60%{ transform:rotate(-9deg); }
+    80%{ transform:rotate(5deg); }
+  }
+
   #timerCloseBtn{
     background:transparent;
     color:#AEB2A6;
@@ -321,6 +356,9 @@
 
 <div class="timer-overlay" id="timerOverlay">
   <div class="timer-box">
+    <div class="timer-bell">
+      <button id="timerBellBtn" type="button" aria-label="Ring bell" title="Ring bell">🔔</button>
+    </div>
     <div class="timer-topic" id="timerTopic"></div>
     <div class="timer-phase" id="timerPhase">Preparation time started</div>
     <div class="timer-clock" id="timerClock">03:00</div>
@@ -469,6 +507,30 @@ function playChime(){
   osc.stop(beep.currentTime + 0.6);
 }
 
+function playBellSound(){
+  if(!beep) return;
+  if(beep.state === "suspended") beep.resume();
+  const now = beep.currentTime;
+  const duration = 1.6;
+  // Layer a fundamental with a couple of inharmonic overtones for a bell-like timbre.
+  const partials = [
+    { freq: 660, gain: 0.28 },
+    { freq: 660 * 2.4, gain: 0.14 },
+    { freq: 660 * 3.9, gain: 0.08 }
+  ];
+  partials.forEach(p => {
+    const osc = beep.createOscillator();
+    const gain = beep.createGain();
+    osc.type = "sine";
+    osc.frequency.value = p.freq;
+    gain.gain.setValueAtTime(p.gain, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain).connect(beep.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+  });
+}
+
 function formatTime(sec){
   const m = Math.floor(sec/60).toString().padStart(2,"0");
   const s = Math.floor(sec%60).toString().padStart(2,"0");
@@ -516,6 +578,14 @@ function closeTimer(){
 }
 
 timerCloseBtn.addEventListener("click", closeTimer);
+
+const timerBellBtn = document.getElementById("timerBellBtn");
+timerBellBtn.addEventListener("click", () => {
+  playBellSound();
+  timerBellBtn.classList.remove("ringing");
+  void timerBellBtn.offsetWidth; // restart animation
+  timerBellBtn.classList.add("ringing");
+});
 </script>
 
 </body>
