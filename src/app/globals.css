@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — carried over from the original Lecturette prototype so the
+ * whole app shares one visual language: dark "field notebook" ink background,
+ * parchment cards, olive/gold accents, and a four-tier difficulty scale.
+ */
+:root {
+  --color-ink: #12161b;
+  --color-ink-2: #191f26;
+  --color-olive: #454f3e;
+  --color-olive-dark: #333b2c;
+  --color-parchment: #f0ead9;
+  --color-parchment-2: #e7dfc9;
+  --color-gold: #c6a15b;
+  --color-gold-dim: #9c8256;
+  --color-text-dark: #242018;
+  --color-text-soft: #54503f;
+  --color-muted: #aeb2a6;
+
+  --color-tier-veasy: #5c8d6e;
+  --color-tier-easy: #3e7c93;
+  --color-tier-moderate: #b8813a;
+  --color-tier-high: #a6413c;
+}
+
+@theme inline {
+  --color-ink: var(--color-ink);
+  --color-ink-2: var(--color-ink-2);
+  --color-olive: var(--color-olive);
+  --color-olive-dark: var(--color-olive-dark);
+  --color-parchment: var(--color-parchment);
+  --color-parchment-2: var(--color-parchment-2);
+  --color-gold: var(--color-gold);
+  --color-gold-dim: var(--color-gold-dim);
+  --color-text-dark: var(--color-text-dark);
+  --color-text-soft: var(--color-text-soft);
+  --color-muted: var(--color-muted);
+
+  --color-tier-veasy: var(--color-tier-veasy);
+  --color-tier-easy: var(--color-tier-easy);
+  --color-tier-moderate: var(--color-tier-moderate);
+  --color-tier-high: var(--color-tier-high);
+
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  font-family: var(--font-serif);
+}
